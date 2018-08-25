@@ -2742,7 +2742,7 @@ public final class ZipUtil {
     operateInPlace(zip, new InPlaceAction() {
       @Override
       boolean act(File tmpFile) {
-        addOrReplaceOrRemoveEntries(zip, entries, entriesToRemove);
+        addOrReplaceOrRemoveEntries(zip, entries, entriesToRemove, tmpFile);
         return true;
       }
     });
