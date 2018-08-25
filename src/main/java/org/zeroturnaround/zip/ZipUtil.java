@@ -2669,9 +2669,24 @@ public final class ZipUtil {
    *          new ZIP file created.
    */
   public static void addOrReplaceEntries(File zip, ZipEntrySource[] entries, File destZip) {
+    addOrReplaceOrRemoveEntries(zip, entries, null, destZip);
+  }
+
+  /**
+   * Copies an existing ZIP file and adds/replaces/removes the given entries in it.
+   * @param zip
+   *            an existing ZIP file (only READ)
+   * @param entries
+   *            ZIP entries to be replaced or added.
+   * @param entriesToRemove
+   *            ZIP entries to be removed.
+   * @param destZip
+   *            new ZIP file created.
+   */
+  public static void addOrReplaceOrRemoveEntries(File zip, ZipEntrySource[] entries, final Set<String> entriesToRemove, File destZip) {
     if (log.isDebugEnabled()) {
       log.debug("Copying '" + zip + "' to '" + destZip + "' and adding/replacing entries " + Arrays.asList(entries)
-          + ".");
+              + ".");
     }
 
     final Map<String, ZipEntrySource> entryByPath = entriesByPath(entries);
@@ -2682,17 +2697,20 @@ public final class ZipUtil {
         final Set<String> names = new HashSet<String>();
         iterate(zip, new ZipEntryCallback() {
           public void process(InputStream in, ZipEntry zipEntry) throws IOException {
-            if (names.add(zipEntry.getName())) {
-              ZipEntrySource entry = (ZipEntrySource) entryByPath.remove(zipEntry.getName());
+            String name = zipEntry.getName();
+            if (names.add(name)) {
+              ZipEntrySource entry = (ZipEntrySource) entryByPath.remove(name);
               if (entry != null) {
                 addEntry(entry, out);
               }
               else {
-                ZipEntryUtil.copyEntry(zipEntry, in, out);
+                if (entriesToRemove == null || !entriesToRemove.contains(name)) {
+                  ZipEntryUtil.copyEntry(zipEntry, in, out);
+                }
               }
             }
             else if (log.isDebugEnabled()) {
-              log.debug("Duplicate entry: {}", zipEntry.getName());
+              log.debug("Duplicate entry: {}", name);
             }
           }
         });
@@ -2709,6 +2727,25 @@ public final class ZipUtil {
     catch (IOException e) {
       ZipExceptionUtil.rethrow(e);
     }
+  }
+
+  /**
+   * Changes a ZIP file: adds/replaces/remove the given entries in it.
+   * @param zip
+   *            an existing ZIP file (only READ)
+   * @param entries
+   *            ZIP entries to be replaced or added.
+   * @param entriesToRemove
+   *            ZIP entries to be removed.
+   */
+  public static void addOrReplaceOrRemoveEntries(final File zip, final ZipEntrySource[] entries, final Set<String> entriesToRemove) {
+    operateInPlace(zip, new InPlaceAction() {
+      @Override
+      boolean act(File tmpFile) {
+        addOrReplaceOrRemoveEntries(zip, entries, entriesToRemove);
+        return true;
+      }
+    });
   }
 
   /**
